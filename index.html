@@ -156,8 +156,24 @@
     <form id="trackerForm">
         <div class="form-group">
             <label for="idPeca">ID da Peça / Código</label>
-            <input type="text" id="idPeca" name="id" placeholder="Ex: MOTOR015" required>
-        </div>
+            <div class="form-group">
+    <label for="idPeca">Sonda</label>
+
+    <select id="idPeca" name="id" required>
+        <option value="" disabled selected>
+            Selecione a sonda...
+        </option>
+
+        <option value="SONDA-001">
+            SONDA-001
+        </option>
+
+        <option value="SONDA-002">
+            SONDA-002
+        </option>
+
+    </select>
+</div>
 
         <div class="form-group">
             <label for="operador">Operador / Responsável</label>
@@ -229,7 +245,7 @@
                 document.getElementById('latitude').value = position.coords.latitude;
                 document.getElementById('longitude').value = position.coords.longitude;
                 
-                geoStatus.textContent = ✓ GPS Ativo (${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)});
+                geoStatus.textContent = `✓ GPS Ativo (${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)})`;
                 geoStatus.className = "geo-badge";
                 btnSalvar.disabled = false; // Ativa o botão de envio
             },
