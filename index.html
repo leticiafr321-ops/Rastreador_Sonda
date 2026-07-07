@@ -1,35 +1,292 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rastreador GEOSOL</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GEOSOL - Rastreador de Campo</title>
+    <!-- Biblioteca para ler QR Code pela câmera (opcional/suporte futuro) -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --primary-color: #0b4f6c; /* Azul corporativo moderno */
+            --secondary-color: #01baef;
+            --accent-color: #f26419; /* Laranja para destaques/alertas */
+            --bg-color: #f7f9fa;
+            --card-bg: #ffffff;
+            --text-color: #2b2d42;
+        }
 
-<style>
-body{
-    font-family:Arial,sans-serif;
-    background:#f4f4f4;
-    margin:0;
-}
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-.container{
-    max-width:400px;
-    margin:30px auto;
-    background:white;
-    padding:20px;
-    border-radius:10px;
-    box-shadow:0 0 10px rgba(0,0,0,.2);
-}
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+        }
 
-h2{
-    text-align:center;
-    color:#ff9800;
-}
+        .header {
+            text-align: center;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
 
-label{
-    font-weight:bold;
-}
+        .header h1 {
+            color: var(--primary-color);
+            font-size: 24px;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
 
-input,select,textarea{
-    width:100%;
-    padding:10
+        .header p {
+            font-size: 14px;
+            color: #6c757d;
+            margin: 5px 0 0 0;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: var(--primary-color);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 16px; /* Evita zoom automático no iOS */
+            box-sizing: border-box;
+            background-color: #fff;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(1, 186, 239, 0.2);
+        }
+
+        input[readonly] {
+            background-color: #e9ecef;
+            color: #495057;
+            cursor: not-allowed;
+        }
+
+        .geo-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            background-color: #e2f0d9;
+            color: #385723;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .geo-badge.loading {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #083b52;
+        }
+
+        button:disabled {
+            background-color: #ced4da;
+            cursor: not-allowed;
+        }
+
+        #statusMessage {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>GEOSOL</h1>
+        <p>Rastreamento de Insumos e Peças</p>
+    </div>
+
+    <form id="trackerForm">
+        <div class="form-group">
+            <label for="idPeca">ID da Peça / Código</label>
+            <input type="text" id="idPeca" name="id" placeholder="Ex: MOTOR015" required>
+        </div>
+
+        <div class="form-group">
+            <label for="operador">Operador / Responsável</label>
+            <input type="text" id="operador" name="operador" placeholder="Seu nome" required>
+        </div>
+
+        <div class="form-group">
+            <label for="status">Status Atual</label>
+            <select id="status" name="status" required>
+                <option value="" disabled selected>Selecione o status...</option>
+                <option value="Em Trânsito">Em Trânsito</option>
+                <option value="Entregue no Campo">Entregue no Campo</option>
+                <option value="Em Manutenção">Em Manutenção</option>
+                <option value="Instalado / Em Uso">Instalado / Em Uso</option>
+                <option value="Descartado / Sucata">Descartado / Sucata</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Localização GPS</label>
+            <div id="geoStatus" class="geo-badge loading">Buscando coordenadas...</div>
+            <input type="hidden" id="latitude" name="latitude">
+            <input type="hidden" id="longitude" name="longitude">
+        </div>
+
+        <div class="form-group">
+            <label for="observacao">Observações</label>
+            <textarea id="observacao" name="observacao" rows="3" placeholder="Alguma observação importante? (Opcional)"></textarea>
+        </div>
+
+        <button type="submit" id="btnSalvar" disabled>Enviar Dados</button>
+    </form>
+
+    <div id="statusMessage"></div>
+</div>
+
+<script>
+    // URL gerada no Passo 3 do Google Apps Script (COLE A SUA AQUI)
+    const WEB_APP_URL = https://script.google.com/macros/s/AKfycby-cFa56gxcPbqppboteuVqjKCqC1NkUfNVbsapRQW6240KttPyD3duikR-taEZAGM-/exec
+    
+    // 1. Captura automática do ID vindo do QR Code (?id=VALOR)
+    window.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const idParam = urlParams.get('id');
+        if (idParam) {
+            const inputId = document.getElementById('idPeca');
+            inputId.value = idParam;
+            inputId.setAttribute('readonly', true); // Bloqueia para o operador não errar a peça
+        }
+        
+        // Iniciar captura do GPS assim que a página abrir
+        capturarLocalizacao();
+    });
+
+    // 2. Função para pegar as coordenadas geográficas
+    function capturarLocalizacao() {
+        const geoStatus = document.getElementById('geoStatus');
+        const btnSalvar = document.getElementById('btnSalvar');
+
+        if (!navigator.geolocation) {
+            geoStatus.textContent = "⚠️ GPS não suportado neste navegador.";
+            geoStatus.className = "geo-badge error";
+            btnSalvar.disabled = false; // Permite salvar mesmo sem GPS se for crítico
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                document.getElementById('latitude').value = position.coords.latitude;
+                document.getElementById('longitude').value = position.coords.longitude;
+                
+                geoStatus.textContent = ✓ GPS Ativo (${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)});
+                geoStatus.className = "geo-badge";
+                btnSalvar.disabled = false; // Ativa o botão de envio
+            },
+            (error) => {
+                console.error(error);
+                geoStatus.textContent = "⚠️ Permissão de localização negada.";
+                geoStatus.className = "geo-badge error";
+                btnSalvar.disabled = false; // Permite salvar mesmo sem GPS
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
+    // 3. Envio dos dados para a Planilha via Apps Script
+    document.getElementById('trackerForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const btn = document.getElementById('btnSalvar');
+        const msg = document.getElementById('statusMessage');
+        
+        btn.disabled = true;
+        btn.textContent = "Enviando...";
+        msg.style.display = "none";
+
+        // Coleta os dados do formulário
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+
+        // Envia para a API do Google Sheets via fetch (usando no-cors para evitar bloqueios simples)
+        fetch(WEB_APP_URL, {
+            method: 'POST',
+            mode: 'no-cors', 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(() => {
+            msg.textContent = "✓ Dados gravados com sucesso na planilha!";
+            msg.className = "statusMessage success";
+            msg.style.display = "block";
+            btn.textContent = "Enviar Dados";
+            btn.disabled = false;
+            
+            // Limpa o formulário (exceto o ID que veio fixo do QR code)
+            document.getElementById('operador').value = '';
+            document.getElementById('status').value = '';
+            document.getElementById('observacao').value = '';
+        })
+        .catch(err => {
+            console.error(err);
+            msg.textContent = "❌ Erro ao enviar dados. Verifique a conexão.";
+            msg.className = "statusMessage error";
+            msg.style.display = "block";
+            btn.textContent = "Tentar Novamente";
+            btn.disabled = false;
+        });
+    });
+</script>
+
+</body>
+</html>
